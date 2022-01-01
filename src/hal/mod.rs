@@ -280,17 +280,7 @@ pub struct HalPins {
 /// HalDelay object based on blocking SystemTime::elapsed calls
 pub struct HalDelay;
 
-impl embedded_hal::delay::blocking::DelayMs<u32> for HalDelay {
-    type Error = HalError;
-
-    fn delay_ms(&mut self, ms: u32) -> Result<(), Self::Error> {
-        let n = SystemTime::now();
-        let d = Duration::from_millis(ms as u64);
-        while n.elapsed().unwrap() < d {}
-        Ok(())
-    }
-}
-impl embedded_hal::delay::blocking::DelayUs<u32> for HalDelay {
+impl embedded_hal::delay::blocking::DelayUs for HalDelay {
     type Error = HalError;
 
     fn delay_us(&mut self, us: u32) -> Result<(), Self::Error> {

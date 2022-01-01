@@ -16,7 +16,15 @@ pub struct SpiError;
 #[derive(Clone, Debug)]
 pub struct DelayError;
 
-pub type MockError = Error<SpiError, PinError, DelayError>;
+#[derive(Clone, Debug)]
+pub struct MockError {
+
+}
+impl embedded_hal::spi::Error for MockError {
+    fn kind(&self) -> embedded_hal::spi::ErrorKind {
+        embedded_hal::spi::ErrorKind::Other
+    }
+}
 
 /// Base mock type
 pub struct Mock {
@@ -69,7 +77,6 @@ pub enum MockTransaction {
     SetHigh(Id),
     SetLow(Id),
 
-    DelayMs(u32),
     DelayUs(u32),
 }
 
@@ -110,7 +117,7 @@ impl MockTransaction {
     }
 
     pub fn delay_ms(v: u32) -> Self {
-        MockTransaction::DelayMs(v)
+        MockTransaction::DelayUs(v * 1000)
     }
 
     pub fn write<B>(spi: &Spi, outgoing: B) -> Self
@@ -159,9 +166,10 @@ impl<'a> From<&SpiOperation<'a, u8>> for MockExec {
     fn from(t: &SpiOperation<'a, u8>) -> Self {
         match t {
             SpiOperation::Write(ref d) => MockExec::SpiWrite(d.to_vec()),
-            SpiOperation::Transfer(ref d) => {
+            SpiOperation::TransferInplace(ref d) => {
                 MockExec::SpiTransfer(d.to_vec(), vec![0u8; d.len()])
-            }
+            },
+            _ => panic!("eh??")
         }
     }
 }
@@ -302,23 +310,7 @@ impl Reset for Spi {
     }
 }
 
-impl embedded_hal::delay::blocking::DelayMs<u32> for Spi {
-    type Error = DelayError;
-
-    fn delay_ms(&mut self, t: u32) -> Result<(), Self::Error> {
-        let mut i = self.inner.lock().unwrap();
-
-        // Save actual call
-        i.actual.push(MockTransaction::DelayMs(t));
-
-        // Update expectation index
-        i.index += 1;
-
-        Ok(())
-    }
-}
-
-impl embedded_hal::delay::blocking::DelayUs<u32> for Spi {
+impl embedded_hal::delay::blocking::DelayUs for Spi {
     type Error = DelayError;
 
     fn delay_us(&mut self, t: u32) -> Result<(), Self::Error> {
@@ -334,10 +326,10 @@ impl embedded_hal::delay::blocking::DelayUs<u32> for Spi {
     }
 }
 
-impl embedded_hal::spi::blocking::Transfer<u8> for Spi {
+impl embedded_hal::spi::blocking::TransferInplace<u8> for Spi {
     type Error = MockError;
 
-    fn transfer<'w>(&mut self, data: &'w mut [u8]) -> Result<(), Self::Error> {
+    fn transfer_inplace<'w>(&mut self, data: &'w mut [u8]) -> Result<(), Self::Error> {
         let mut i = self.inner.lock().unwrap();
         let index = i.index;
 
@@ -408,7 +400,7 @@ impl embedded_hal::spi::blocking::Transactional<u8> for Spi {
 
                 match (t, x) {
                     (
-                        SpiOperation::Transfer(ref mut t_in),
+                        SpiOperation::TransferInplace(ref mut t_in),
                         Some(MockExec::SpiTransfer(_x_out, x_in)),
                     ) => t_in.copy_from_slice(&x_in),
                     (SpiOperation::Write(ref _t_out), Some(MockExec::SpiWrite(ref _x_out))) => {
@@ -496,23 +488,8 @@ impl embedded_hal::digital::blocking::OutputPin for Pin {
     }
 }
 
-impl embedded_hal::delay::blocking::DelayMs<u32> for Delay {
-    type Error = DelayError;
 
-    fn delay_ms(&mut self, t: u32) -> Result<(), Self::Error> {
-        let mut i = self.inner.lock().unwrap();
-
-        // Save actual call
-        i.actual.push(MockTransaction::DelayMs(t));
-
-        // Update expectation index
-        i.index += 1;
-
-        Ok(())
-    }
-}
-
-impl embedded_hal::delay::blocking::DelayUs<u32> for Delay {
+impl embedded_hal::delay::blocking::DelayUs for Delay {
     type Error = DelayError;
 
     fn delay_us(&mut self, t: u32) -> Result<(), Self::Error> {
