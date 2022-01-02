@@ -147,15 +147,16 @@ pub enum HalSpi {
     Cp2130(driver_cp2130::Spi),
 }
 
-impl embedded_hal::spi::blocking::Transfer<u8> for HalSpi {
+impl embedded_hal::spi::blocking::TransferInplace<u8> for HalSpi {
     type Error = HalError;
 
-    fn transfer<'w>(&mut self, data: &'w mut [u8]) -> Result<(), Self::Error> {
+    fn transfer_inplace<'w>(&mut self, data: &'w mut [u8]) -> Result<(), Self::Error> {
         match self {
             #[cfg(all(feature = "hal-linux", target_os = "linux"))]
             HalSpi::Linux(i) => i.transfer(data)?,
             #[cfg(feature = "hal-cp2130")]
             HalSpi::Cp2130(i) => i.transfer(data)?,
+            _ => panic!("eh?")
         }
         Ok(())
     }
@@ -170,6 +171,7 @@ impl embedded_hal::spi::blocking::Write<u8> for HalSpi {
             HalSpi::Linux(i) => i.write(data)?,
             #[cfg(feature = "hal-cp2130")]
             HalSpi::Cp2130(i) => i.write(data)?,
+            _ => panic!("eh?")
         }
         Ok(())
     }
@@ -189,6 +191,7 @@ impl embedded_hal::spi::blocking::Transactional<u8> for HalSpi {
             HalSpi::Linux(i) => i.exec(operations)?,
             #[cfg(feature = "hal-cp2130")]
             HalSpi::Cp2130(i) => i.exec(operations)?,
+            _ => panic!("eh?")
         }
         Ok(())
     }

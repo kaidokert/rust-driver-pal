@@ -634,7 +634,7 @@ mod test {
         )]);
 
         let mut d = outgoing.clone();
-        s.transfer(&mut d).expect("read failure");
+        s.transfer_inplace(&mut d).expect("read failure");
 
         m.finalise();
         assert_eq!(&incoming, &d);
